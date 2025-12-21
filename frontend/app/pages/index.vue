@@ -117,7 +117,8 @@ const startScraping = async () => {
   loading.value = true
   quotes.value = []
   progress.value = 0
-  total.value = 0  // Will update when first item arrives or logic is improved
+  progress.value = 0
+  total.value = 30  // Start with an estimated "horizon" of one page
   
   // Create new controller for this request
   abortController = new AbortController()
@@ -164,10 +165,11 @@ const startScraping = async () => {
           }
 
           // Handle progress update
-          if (data.total) total.value = data.total
+          // Ignore backend total to avoid premature 100%
           
           if (data.done) {
               loading.value = false
+              total.value = progress.value // Snap to final count
               progress.value = total.value
               return
           }
@@ -175,6 +177,12 @@ const startScraping = async () => {
           if (data.text) {
               quotes.value.push(data)
               progress.value = quotes.value.length
+              
+              // Dynamic Horizon: If we are getting close to the estimated total, extend it.
+              // e.g. if we have 25 quotes and total is 30, bump total to 60.
+              if (progress.value >= total.value * 0.8) {
+                  total.value += 30
+              }
           }
 
         } catch (parseError) {

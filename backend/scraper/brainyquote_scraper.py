@@ -23,8 +23,7 @@ async def scrape_brainyquote_generator(topic: str):
         try:
             page = await context.new_page()
             
-            # Removed aggressive resource blocking to ensure grid renders correctly
-            
+            # Navigate to the first page
             try:
                 await page.goto(url, timeout=60000, wait_until="domcontentloaded")
             except Exception as e:
@@ -32,94 +31,134 @@ async def scrape_brainyquote_generator(topic: str):
                 yield {"error": f"Failed to load page: {str(e)}"}
                 return
 
-            # Check for "Page Not Found" (invalid topic)
-            try:
-                title = await page.title()
-                h1_text = await page.evaluate("() => document.querySelector('h1') ? document.querySelector('h1').innerText : ''")
-                
-                if "Page Not Found" in title or "Page Not Found" in h1_text:
-                    logger.warning(f"Topic '{topic}' not found.")
-                    yield {"error": f"Le sujet '{topic}' n'a pas été trouvé. Essayez un autre terme."}
-                    return
-            except Exception as e:
-                logger.warning(f"Error checking 404 state: {e}")
+            page_number = 1
+            max_pages = 20 # Safety limit
 
-            # Wait for grid items to appear
-            try:
-                # Wait for the container first
-                await page.wait_for_selector("#quotesList", timeout=15000)
-                # Then wait for items
-                await page.wait_for_selector(".grid-item.bqQt", timeout=15000)
-            except Exception as e:
-                logger.warning(f"No quotes found (selector timed out): {e}")
-                # Debug: log content length and take screenshot
-                content = await page.content()
-                logger.info(f"Page content length: {len(content)}")
-                
-                # Save screenshot to debug visually
-                screenshot_path = f"debug_screenshot_{topic}.png"
-                await page.screenshot(path=screenshot_path)
-                logger.info(f"Saved debug screenshot to {screenshot_path}")
-                
-                yield {"error": "No quotes found. The site might be blocking the scraper. Check backend logs for screenshot."}
-                return
+            while page_number <= max_pages:
+                logger.info(f"Scraping page {page_number} for topic '{topic}'")
 
-            # Select only actual quote items (exclude ads which are just .grid-item)
-            quote_elements = await page.query_selector_all(".grid-item.bqQt")
-            total = len(quote_elements)
-            logger.info(f"Found {total} potential quote elements.")
-            
-            # Send initial "start" event
-            yield {"total": total} 
-
-            for idx, el in enumerate(quote_elements, start=1):
-                try:
-                    text_el = await el.query_selector("a.b-qt")
-                    author_el = await el.query_selector("a.bq-aut")
-                     # ... (image processing matches existing code) ...
-                    
-                    # Try finding image
-                    img_el = await el.query_selector("img.bqphtgrid")
-                    img_src = None
-                    if img_el:
-                        img_src = await img_el.get_attribute("src")
-                        if not img_src or "base64" in img_src:
-                            data_src = await img_el.get_attribute("data-src")
-                            if data_src:
-                                img_src = data_src
+                # Check for "Page Not Found" (invalid topic) on first page mainly
+                if page_number == 1:
+                    try:
+                        title = await page.title()
+                        h1_text = await page.evaluate("() => document.querySelector('h1') ? document.querySelector('h1').innerText : ''")
                         
-                        if img_src and img_src.startswith("/"):
-                            img_src = "https://www.brainyquote.com" + img_src
+                        if "Page Not Found" in title or "Page Not Found" in h1_text:
+                            logger.warning(f"Topic '{topic}' not found.")
+                            yield {"error": f"Le sujet '{topic}' n'a pas été trouvé. Essayez un autre terme."}
+                            return
+                    except Exception as e:
+                        logger.warning(f"Error checking 404 state: {e}")
 
-                    if not text_el or not author_el:
-                        # Even if we skip, we should update progress so frontend doesn't hang
-                        yield {"progress": idx, "total": total}
+                # Wait for grid items to appear
+                try:
+                    # Wait for the container first
+                    await page.wait_for_selector("#quotesList", timeout=15000)
+                    # Then wait for items
+                    await page.wait_for_selector(".grid-item.bqQt", timeout=15000)
+                except Exception as e:
+                    logger.warning(f"No quotes found on page {page_number} (selector timed out): {e}")
+                    if page_number == 1:
+                        # Only critical if it's the first page
+                        # Debug: log content length and take screenshot
+                        content = await page.content()
+                        logger.info(f"Page content length: {len(content)}")
+                        
+                        screenshot_path = f"debug_screenshot_{topic}_p{page_number}.png"
+                        await page.screenshot(path=screenshot_path)
+                        logger.info(f"Saved debug screenshot to {screenshot_path}")
+                        
+                        yield {"error": "No quotes found. The site might be blocking the scraper."}
+                        return
+                    else:
+                        logger.info("No more quotes found on this page, stopping.")
+                        break
+
+                # Select only actual quote items (exclude ads which are just .grid-item)
+                quote_elements = await page.query_selector_all(".grid-item.bqQt")
+                total_on_page = len(quote_elements)
+                logger.info(f"Found {total_on_page} quotes on page {page_number}.")
+                
+                # Send information about this page to initialize/reset progress bar for this page
+                yield {"total": total_on_page, "page": page_number}
+
+                for idx, el in enumerate(quote_elements, start=1):
+                    try:
+                        text_el = await el.query_selector("a.b-qt")
+                        author_el = await el.query_selector("a.bq-aut")
+                        
+                        # Try finding image
+                        img_el = await el.query_selector("img.bqphtgrid")
+                        img_src = None
+                        if img_el:
+                            img_src = await img_el.get_attribute("src")
+                            if not img_src or "base64" in img_src:
+                                data_src = await img_el.get_attribute("data-src")
+                                if data_src:
+                                    img_src = data_src
+                            
+                            if img_src and img_src.startswith("/"):
+                                img_src = "https://www.brainyquote.com" + img_src
+
+                        if not text_el or not author_el:
+                            yield {"progress": idx, "total": total_on_page}
+                            continue
+
+                        text = (await text_el.inner_text()).strip()
+                        author = (await author_el.inner_text()).strip()
+                        link = "https://www.brainyquote.com" + (await text_el.get_attribute("href") or "")
+
+                        yield {
+                            "text": text,
+                            "author": author,
+                            "link": link,
+                            "image_url": img_src,
+                            "page": page_number,
+                            "progress": idx,
+                            "total": total_on_page
+                        }
+                        
+                        # Small delay
+                        await asyncio.sleep(0.05)
+                        
+                    except Exception as item_error:
+                        logger.error(f"Error scraping item {idx} on page {page_number}: {item_error}")
+                        yield {"progress": idx, "total": total_on_page}
                         continue
-
-                    text = (await text_el.inner_text()).strip()
-                    author = (await author_el.inner_text()).strip()
-                    link = "https://www.brainyquote.com" + (await text_el.get_attribute("href") or "")
-
-                    yield {
-                        "text": text,
-                        "author": author,
-                        "link": link,
-                        "image_url": img_src,
-                        "progress": idx,
-                        "total": total
-                    }
+                
+                # Pagination Logic
+                try:
+                    # Look for "Next" button/link. BrainyQuote usually has a "Next" text or an icon.
+                    # We try to find a link that contains "Next" or has a class indicative of next page.
+                    # Usually: <ul class="pagination"> ... <li><a href="...">Next</a></li>
                     
-                    # Small delay
-                    await asyncio.sleep(0.1)
+                    next_button = await page.query_selector("ul.pagination li.page-item:last-child a")
+                    # Or try text match if class structure changed
+                    if not next_button:
+                        next_button = await page.get_by_text("Next", exact=True).element_handle()
                     
-                except Exception as item_error:
-                    logger.error(f"Error scraping item {idx}: {item_error}")
-                    # Yield progress even on error
-                    yield {"progress": idx, "total": total}
-                    continue
-            
-            # Ensure we send a distinct "done" event or just the final progress
-            yield {"done": True, "total": total}
+                    if next_button:
+                        # Check if it's disabled (sometimes 'disabled' class on li)
+                        parent_li = await next_button.evaluate_handle("el => el.parentElement")
+                        class_name = await parent_li.get_attribute("class")
+                        if class_name and "disabled" in class_name:
+                            logger.info("Next button is disabled. End of pagination.")
+                            break
+                        
+                        logger.info("Next button found, navigating to next page...")
+                        await next_button.click()
+                        await page.wait_for_load_state("domcontentloaded")
+                        page_number += 1
+                        await asyncio.sleep(1) # Be polite
+                    else:
+                        logger.info("No Next button found. End of pagination.")
+                        break
+                        
+                except Exception as pag_error:
+                    logger.warning(f"Error during pagination check: {pag_error}")
+                    break
+
+            yield {"done": True, "total_pages": page_number}
 
         except Exception as e:
             logger.error(f"Global error in scraper: {e}")

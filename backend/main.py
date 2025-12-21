@@ -6,6 +6,7 @@ from fastapi import FastAPI, Query
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from scraper.brainyquote_scraper import scrape_brainyquote_generator
+from services.supabase_client import save_quote
 
 # Fix for Playwright on Windows
 if sys.platform == "win32":
@@ -30,6 +31,12 @@ async def api_scrape(topic: str = Query(..., description="Sujet à scraper")):
     async def event_generator():
         try:
             async for data in scrape_brainyquote_generator(topic):
+                # Save to Supabase if it's a quote item (has text and author)
+                if "text" in data and "author" in data:
+                    # Enrich with topic
+                    data["topic"] = topic
+                    save_quote(data)
+                
                 # Using Server-Sent Events (SSE) or just Newline Delimited JSON (NDJSON)
                 # NDJSON is easier to parse manually on client in a simple loop
                 yield json.dumps(data) + "\n"
