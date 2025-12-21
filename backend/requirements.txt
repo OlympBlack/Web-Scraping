@@ -1,6 +1,1 @@
-fastapi
-uvicorn
-playwright
-python-dotenv
-requests
-supabase
+git-filter-repo==2.47.0
