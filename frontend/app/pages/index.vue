@@ -40,12 +40,12 @@
         <div v-if="loading || progress > 0" class="space-y-2">
             <div class="flex justify-between text-sm font-medium text-gray-600">
                 <span>Progression: {{ progress }} citations trouvées</span>
-                <span v-if="total > 0">~{{ Math.round((progress / total) * 100) }}%</span>
+                <span v-if="total > 0">~{{ displayedPercentage.toFixed(1) }}%</span>
             </div>
             <div class="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                 <div 
                     class="bg-black h-3 rounded-full transition-all duration-300 ease-out"
-                    :style="{ width: total ? `${(progress / total) * 100}%` : '0%' }"
+                    :style="{ width: `${displayedPercentage}%` }"
                 ></div>
             </div>
             <p v-if="loading" class="text-xs text-center text-gray-400 animate-pulse">Récupération des données en temps réel...</p>
@@ -103,6 +103,7 @@ const loading = ref(false)
 const error = ref("")
 const progress = ref(0)
 const total = ref(0)
+const displayedPercentage = ref(0)
 
 let abortController: AbortController | null = null
 
@@ -117,7 +118,7 @@ const startScraping = async () => {
   loading.value = true
   quotes.value = []
   progress.value = 0
-  progress.value = 0
+  displayedPercentage.value = 0
   total.value = 30  // Start with an estimated "horizon" of one page
   
   // Create new controller for this request
@@ -171,6 +172,7 @@ const startScraping = async () => {
               loading.value = false
               total.value = progress.value // Snap to final count
               progress.value = total.value
+              displayedPercentage.value = 100
               return
           }
 
@@ -179,10 +181,34 @@ const startScraping = async () => {
               progress.value = quotes.value.length
               
               // Dynamic Horizon: If we are getting close to the estimated total, extend it.
-              // e.g. if we have 25 quotes and total is 30, bump total to 60.
               if (progress.value >= total.value * 0.8) {
                   total.value += 30
               }
+
+              // --- Monotonic Asymptotic Logic ---
+              const rawPercent = (progress.value / total.value) * 100
+              let nextPercent = displayedPercentage.value
+
+              if (rawPercent > displayedPercentage.value) {
+                  // Standard case: we have room to grow
+                  // If we are nearing 100%, dampen the approach (Asymptotic)
+                  if (rawPercent > 95) {
+                      // Move only 10% of the remaining distance to rawPercent to slow down
+                      nextPercent += (rawPercent - displayedPercentage.value) * 0.1
+                  } else {
+                     // Normal catch-up
+                     nextPercent = rawPercent
+                  }
+              } else {
+                  // Horizon expanded (rawPercent dropped), but we MUST NOT go back.
+                  // Artificial micro-increment to show "aliveness"
+                  nextPercent += 0.1
+              }
+
+              // Hard cap at 99.5% until fully done
+              if (nextPercent > 99.5) nextPercent = 99.5
+              
+              displayedPercentage.value = nextPercent
           }
 
         } catch (parseError) {
