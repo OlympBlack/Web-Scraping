@@ -35,3 +35,23 @@ def save_quote(quote_data: dict):
     except Exception as e:
         print(f"Error saving quote: {e}")
         return None
+
+def upload_image(file_content: bytes, file_name: str, content_type: str = "image/jpeg") -> str | None:
+    """
+    Uploads an image to Supabase Storage 'quote-images' bucket.
+    Returns the public URL of the uploaded image.
+    """
+    try:
+        bucket_name = "quote-images"
+        # Upload
+        supabase.storage.from_(bucket_name).upload(
+            path=file_name,
+            file=file_content,
+            file_options={"content-type": content_type, "upsert": "true"}
+        )
+        # Get Public URL
+        public_url = supabase.storage.from_(bucket_name).get_public_url(file_name)
+        return public_url
+    except Exception as e:
+        print(f"Error uploading image {file_name}: {e}")
+        return None

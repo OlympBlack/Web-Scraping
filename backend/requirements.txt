@@ -1,1 +1,7 @@
 git-filter-repo==2.47.0
+httpx
+supabase
+python-dotenv
+uvicorn
+fastapi
+playwright

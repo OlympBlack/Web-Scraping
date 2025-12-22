@@ -6,7 +6,9 @@ from fastapi import FastAPI, Query
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from scraper.brainyquote_scraper import scrape_brainyquote_generator
-from services.supabase_client import save_quote
+from services.supabase_client import save_quote, upload_image
+from services.image_downloader import download_image
+import uuid
 
 # Fix for Playwright on Windows
 if sys.platform == "win32":
@@ -35,6 +37,37 @@ async def api_scrape(topic: str = Query(..., description="Sujet à scraper")):
                 if "text" in data and "author" in data:
                     # Enrich with topic
                     data["topic"] = topic
+                    
+                    # Handle Image Logic
+                    original_image_url = data.get("image_url")
+                    if original_image_url:
+                        try:
+                            logger.info(f"Downloading image from {original_image_url}...")
+                            download_result = await download_image(original_image_url)
+                            
+                            if download_result:
+                                image_content, mime_type = download_result
+                                # Create a unique filename
+                                suffix = "jpg"
+                                if "png" in mime_type:
+                                    suffix = "png"
+                                elif "webp" in mime_type:
+                                    suffix = "webp"
+                                    
+                                filename = f"{topic}/{uuid.uuid4()}.{suffix}"
+                                logger.info(f"Uploading image to {filename} (Type: {mime_type})...")
+                                public_url = upload_image(image_content, filename, content_type=mime_type)
+                                
+                                if public_url:
+                                    logger.info(f"Image uploaded successfully: {public_url}")
+                                    data["image_url"] = public_url
+                                else:
+                                    logger.warning("Failed to upload image, keeping original URL (or None)")
+                            else:
+                                logger.warning("Failed to download image content")
+                        except Exception as img_err:
+                            logger.error(f"Error processing image: {img_err}")
+
                     save_quote(data)
                 
                 # Using Server-Sent Events (SSE) or just Newline Delimited JSON (NDJSON)
