@@ -2,6 +2,17 @@
 
 Une application full-stack de web scraping construite avec **Nuxt** (Frontend) et **FastAPI + Playwright** (Backend), intégrée avec **Supabase** pour la base de données et le stockage.
 
+## 🚀 Liens de Production
+
+*   **Frontend (Site Web)** : [https://web-scraper-snowy.vercel.app/](https://web-scraper-snowy.vercel.app/)
+*   **Backend (API)** : [https://web-scraper-4luz.onrender.com](https://web-scraper-4luz.onrender.com) (Documenté ici pour référence, utilisé par le frontend)
+
+> [!IMPORTANT]
+> **Attention lors du déploiement du Backend** :
+> Assurez-vous d'utiliser le **Runtime Docker** sur votre hébergeur (Render, Railway, etc.). N'utilisez PAS l'environnement "Python Native" ou "Shell" par défaut, car Playwright a besoin de dépendances système spécifiques qui sont incluses dans notre `Dockerfile`.
+
+---
+
 ## Fonctionnalités
 - **Scraping** : Extraction automatisée de citations et d'images depuis BrainyQuote.
 - **Retour en temps réel** : Barre de progression et mises à jour de statut en direct via Server-Sent Events (SSE).
@@ -17,7 +28,7 @@ Une application full-stack de web scraping construite avec **Nuxt** (Frontend) e
 
 ---
 
-## Installation et Configuration
+## Installation et Configuration (Local)
 
 ### 1. Configuration du Backend
 
@@ -105,25 +116,10 @@ npm run dev
 
 ## Déploiement
 
-### Frontend (Nuxt)
-Déployez sur **Vercel** ou **Netlify**.
-1.  Connectez votre dépôt GitHub.
-2.  Commande de build : `npm run build`.
-3.  Dossier de sortie : `.output`.
+### Frontend (Nuxt) - Vercel
+Configurer la variable d'environnement :
+*   `NUXT_PUBLIC_API_BASE`: `https://web-scraper-4luz.onrender.com`
 
-### Backend (FastAPI + Playwright)
-Déployez sur une plateforme supportant Docker ou Python + Navigateurs Système (ex: **Railway**, **Render**, ou un **VPS**).
-
-**Exemple de Dockerfile (pour le Backend) :**
-```dockerfile
-FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+### Backend (FastAPI) - Render
+*   Sélectionner **Docker** comme environnement de build.
+*   Variables d'environnement : `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.

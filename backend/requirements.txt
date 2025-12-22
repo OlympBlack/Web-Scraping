@@ -4,4 +4,4 @@ supabase
 python-dotenv
 uvicorn
 fastapi
-playwright==1.57.0==1.57.0
+playwright==1.57.0
