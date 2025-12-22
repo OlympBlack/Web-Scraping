@@ -110,7 +110,7 @@ npm run dev
 ```
 *Le frontend tourne sur http://localhost:3000*
 
-**Utilisation** : Ouvrez l'URL du frontend, entrez un sujet (ex: "Success"), et cliquez sur "Scrape".
+**Utilisation** : Ouvrez l'URL du frontend, entrez un sujet (ex: "Success"), et cliquez sur "Lancer".
 
 ---
 
