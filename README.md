@@ -114,12 +114,61 @@ npm run dev
 
 ---
 
-## Déploiement
+## ☁️ Guide de Déploiement Complet
 
-### Frontend (Nuxt) - Vercel
-Configurer la variable d'environnement :
-*   `NUXT_PUBLIC_API_BASE`: `https://web-scraper-4luz.onrender.com`
+Cette section vous guide pas à pas pour mettre en ligne votre propre version du Web Scraper.
 
-### Backend (FastAPI) - Render
-*   Sélectionner **Docker** comme environnement de build.
-*   Variables d'environnement : `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+### 📝 Note Importante sur Supabase
+
+Pour que l'application fonctionne correctement et que VOUS puissiez voir les données récoltées, **vous devez déployer ce projet en utilisant votre propre compte Supabase**.
+*   Si vous utilisez le projet de démonstration, vous ne pourrez pas voir les nouvelles entrées dans le tableau de bord ni accéder au stockage.
+*   Créez un nouveau projet sur [Supabase.com](https://supabase.com/) pour obtenir vos propres URL et Clés API.
+
+---
+
+### 1. Déploiement du Backend (API)
+
+Nous recommandons **Render** ou **Railway** pour héberger le backend Python.
+
+> [!WARNING]
+> **Point Critique : Runtime Docker**
+> Ce projet utilise Playwright, qui nécessite des navigateurs installés dans le système. Vous **DEVEZ** configurer votre hébergeur pour utiliser **Docker** (via le `Dockerfile` fourni) et NON l'environnement Python natif.
+
+**Sur Render / Railway :**
+1.  Connectez votre dépôt GitHub.
+2.  **Root Directory** : Définissez-le sur `backend` (très important, sinon le build échouera).
+3.  **Build Environment** : Sélectionnez **Docker**.
+4.  **Variables d'Environnement** : Ajoutez les clés suivantes (trouvées dans vos paramètres Supabase à *Project Settings > API*) :
+    *   `SUPABASE_URL` : L'URL de votre projet (ex: `https://xyz.supabase.co`).
+    *   `SUPABASE_KEY` : Votre clé publique `anon`.
+    *   `SUPABASE_SERVICE_ROLE_KEY` : Votre clé secrète `service_role` (nécessaire pour contourner les restrictions lors de l'upload).
+
+Une fois déployé, copiez l'URL fournie (ex: `https://mon-scraper-backend.onrender.com`).
+
+---
+
+### 2. Déploiement du Frontend (Site Web)
+
+Nous recommandons **Vercel** pour le frontend Nuxt.
+
+1.  Allez sur Vercel et importez votre projet GitHub.
+2.  **Root Directory** : Cliquez sur "Edit" et sélectionnez le dossier `frontend`.
+3.  **Variables d'Environnement** :
+    *   Nom : `NUXT_PUBLIC_API_BASE`
+    *   Valeur : L'URL de votre backend fraîchement déployé (étape 1) **sans le slash à la fin**.
+    *   *Exemple : `https://mon-scraper-backend.onrender.com`*
+4.  Lancez le déploiement.
+
+---
+
+### 3. Vérification Finale (Supabase)
+
+Pour que tout soit opérationnel, assurez-vous d'avoir configuré votre projet Supabase :
+
+1.  **Table Database** : Allez dans l'éditeur SQL de Supabase et exécutez le script de création de table (voir section *Configuration de Supabase* ci-dessus).
+2.  **Stockage** :
+    *   Créez un nouveau Bucket nommé `quote-images`.
+    *   **Important** : Cochez "Public Bucket" lors de la création pour que les images soient accessibles par le site web.
+    *   Si vous oubliez de le mettre en public, les images s'uploaderont mais ne s'afficheront pas.
+
+🎉 **Félicitations !** Votre Web Scraper est maintenant entièrement déployé et fonctionnel.
