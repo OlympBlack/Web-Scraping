@@ -2,6 +2,8 @@
 
 Une application full-stack de web scraping construite avec **Nuxt** (Frontend) et **FastAPI + Playwright** (Backend), intégrée avec **Supabase** pour la base de données et le stockage.
 
+🎥 **Vidéo Démo** : [Regarder sur YouTube](https://youtu.be/41hZkVxgZlE)
+
 ## 🚀 Liens de Production
 
 *   **Frontend (Site Web)** : [https://web-scraper-snowy.vercel.app/](https://web-scraper-snowy.vercel.app/)
