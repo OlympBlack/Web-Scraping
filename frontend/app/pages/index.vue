@@ -124,9 +124,12 @@ const startScraping = async () => {
   // Create new controller for this request
   abortController = new AbortController()
   const signal = abortController.signal
+  
+  const config = useRuntimeConfig()
+  const apiBase = config.public.apiBase
 
   try {
-    const response = await fetch(`http://127.0.0.1:8000/api/scrape?topic=${encodeURIComponent(topic.value)}`, {
+    const response = await fetch(`${apiBase}/api/scrape?topic=${encodeURIComponent(topic.value)}`, {
       signal
     })
 

@@ -1,6 +1,6 @@
 # Projet de Scraping Web (BrainyQuote)
 
-Une application full-stack de web scraping construite avec **Nuxt 3** (Frontend) et **FastAPI + Playwright** (Backend), intégrée avec **Supabase** pour la base de données et le stockage.
+Une application full-stack de web scraping construite avec **Nuxt** (Frontend) et **FastAPI + Playwright** (Backend), intégrée avec **Supabase** pour la base de données et le stockage.
 
 ## Fonctionnalités
 - **Scraping** : Extraction automatisée de citations et d'images depuis BrainyQuote.
